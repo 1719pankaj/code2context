@@ -1,4 +1,4 @@
-# CODE2CONTEXT
+![Logo](https://github.com/1719pankaj/Utilities/blob/main/Code2Context_Logo.jpg)
 
 A simple yet powerful tool for extracting code files from projects and combining them into a single Markdown document - perfect for feeding code context into LLMs!
 
