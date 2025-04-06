@@ -65,7 +65,7 @@ Have an idea to improve Code Extractor?
 
 To add a new project type configuration (e.g., Python, Ruby, etc.):
 
-1. Create a new config file named `{type}_extract.config` (e.g., `python_extract.config`)
+1. Create a new config file named `{type}_extract.config` (e.g., `python_extract.config`) in the `configs/` directory
 2. Structure your configuration following this template:
 
 ```ini
@@ -168,7 +168,7 @@ The main script (`main.py`) consists of several key components:
 
 Configuration files (.config) use the INI format. The processing flow:
 
-1. The script locates the config file based on the `-c` parameter
+1. The script searches for config files in the `configs/` directory, then falls back to the script directory
 2. It parses global exclusions (applied to all sections)
 3. For each directory section, it:
    - Resolves the full path

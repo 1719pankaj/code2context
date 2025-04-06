@@ -100,6 +100,33 @@ def ensure_directory_exists(file_path):
         os.makedirs(directory)
         print(f"Created directory: {directory}")
 
+def find_config_file(config_name):
+    """
+    Find the configuration file by searching in the following locations:
+    1. configs/ directory relative to the script
+    2. Current script directory
+    """
+    # Define the config filename
+    if not config_name.endswith('_extract.config') and not config_name.endswith('.config'):
+        config_filename = f"{config_name}_extract.config"
+    else:
+        config_filename = config_name if config_name.endswith('.config') else f"{config_name}.config"
+
+    # Search paths: configs/ directory first, then script directory
+    script_dir = os.path.dirname(__file__)
+    configs_dir = os.path.join(script_dir, "configs")
+
+    search_paths = [
+        os.path.join(configs_dir, config_filename),  # configs/xxx_extract.config
+        os.path.join(script_dir, config_filename)    # ./xxx_extract.config (fallback)
+    ]
+
+    for path in search_paths:
+        if os.path.exists(path):
+            return path
+
+    return None
+
 def main():
     parser = argparse.ArgumentParser(description='Collect code based on config file and save as markdown.')
     parser.add_argument('directory', help='Base directory of the project')
@@ -108,12 +135,10 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine the config file path
-    config_name = f"{args.config}_extract.config" if not args.config.endswith('_extract') else f"{args.config}.config"
-    config_path = os.path.join(os.path.dirname(__file__), config_name)
-
-    if not os.path.exists(config_path):
-        print(f"Error: Config file '{config_name}' not found.")
+    # Find the configuration file
+    config_path = find_config_file(args.config)
+    if not config_path:
+        print(f"Error: Config file for '{args.config}' not found in 'configs/' directory or script directory.")
         return
 
     config = configparser.ConfigParser()
@@ -140,7 +165,7 @@ def main():
     # Make sure the output directory exists
     ensure_directory_exists(output_path)
 
-    print(f"Using config: {config_name}")
+    print(f"Using config: {os.path.basename(config_path)}")
     print(f"Scanning base directory: {args.directory}")
     print(f"Output will be saved to: {output_path}")
 

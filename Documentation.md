@@ -38,14 +38,20 @@ python main.py <directory> [-c CONFIG] [-o OUTPUT]
 
 Configuration files use the INI format with sections representing directories and their scan rules.
 
+### Location of Configuration Files
+
+Configuration files are searched for in the following order:
+1. `configs/` directory (relative to the script)
+2. The same directory as the script (for backward compatibility)
+
 ### Naming Convention
 
 Configuration files follow the naming pattern: `{config_type}_extract.config`
 
 Example:
-- `web_extract.config` - for web projects
-- `android_extract.config` - for Android projects
-- `custom_extract.config` - for custom project types
+- `configs/web_extract.config` - for web projects
+- `configs/android_extract.config` - for Android projects
+- `configs/custom_extract.config` - for custom project types
 
 ### Configuration Structure
 
@@ -188,6 +194,9 @@ files = build.gradle.kts, settings.gradle.kts, app/build.gradle.kts, app/src/mai
 #### `main()`
 Entry point that parses arguments and orchestrates the extraction process.
 
+#### `find_config_file(config_name)`
+Searches for configuration files in the `configs/` directory and falls back to the script directory.
+
 #### `collect_files_from_dir(directory, extensions, include_subdirs, excluded_dirs, excluded_files)`
 Collects files from a directory based on specified filters.
 
@@ -225,9 +234,25 @@ python main.py /path/to/project -c web -o reports/web_code.md
 
 ### Creating Custom Configurations
 
-1. Create a file named `{your_config}_extract.config`
+1. Create a file named `{your_config}_extract.config` in the `configs/` directory
 2. Structure it with appropriate sections and rules
 3. Run the script with `-c {your_config}`
+
+## Directory Structure
+
+```
+code-extractor/
+├── main.py
+├── configs/
+│   ├── web_extract.config
+│   ├── android_extract.config
+│   └── ... (your custom configs)
+├── Extracts/
+│   └── ... (generated output files)
+├── README.md
+├── CONTRIBUTING.md
+└── Documentation.md
+```
 
 ## Limitations
 
@@ -237,6 +262,6 @@ python main.py /path/to/project -c web -o reports/web_code.md
 
 ## Troubleshooting
 
-- **Config file not found**: Ensure the config file follows the naming convention `{config}_extract.config` and is in the same directory as the script
+- **Config file not found**: Ensure the config file follows the naming convention `{config}_extract.config` and is in the `configs/` directory
 - **No files found**: Check your configuration for overly restrictive rules or exclusions
 - **Directory not found**: Verify that section names in the config file match existing directories relative to the project root

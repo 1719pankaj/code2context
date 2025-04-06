@@ -1,4 +1,4 @@
-# Code Extractor
+# CODE2CONTEXT
 
 A simple yet powerful tool for extracting code files from projects and combining them into a single Markdown document - perfect for feeding code context into LLMs!
 
@@ -51,6 +51,22 @@ The extracted code will be saved to an `Extracts` folder by default (automatical
 - **Exclusion filters** for node_modules, build directories, and more
 - **Specific file inclusion** regardless of other rules
 - **Files list generation** for quick reference
+
+## Project Structure
+
+```
+code-extractor/
+├── main.py              # Main script
+├── configs/             # Directory for configuration files
+│   ├── web_extract.config
+│   ├── android_extract.config
+│   └── ...              # Your custom configurations
+├── Extracts/            # Generated output (created when needed)
+│   └── ...
+├── README.md
+├── CONTRIBUTING.md
+└── Documentation.md
+```
 
 ## Example: Using with LLMs
 
