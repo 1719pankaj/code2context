@@ -30,6 +30,13 @@ python main.py /path/to/your/project
 
 ### Basic Usage
 
+**Graphical User Interface (GUI)**:
+```bash
+# Launch with the GUI
+python main.py -ui
+```
+
+**Command Line Interface (CLI)**:
 ```bash
 # For web projects
 python main.py /path/to/web/project -c web
@@ -45,6 +52,7 @@ The extracted code will be saved to an `Extracts` folder by default (automatical
 
 ## Features at a Glance
 
+- **User-friendly GUI** for interactive file selection and extraction
 - **Battery-included configurations** for web and Android projects
 - **Flexible file selection** based on directories, extensions, and patterns
 - **Markdown output** with proper syntax highlighting
@@ -56,7 +64,7 @@ The extracted code will be saved to an `Extracts` folder by default (automatical
 
 ```
 code-extractor/
-├── main.py              # Main script
+├── main.py              # Main script with CLI and GUI functionality
 ├── configs/             # Directory for configuration files
 │   ├── web_extract.config
 │   ├── android_extract.config
@@ -68,11 +76,21 @@ code-extractor/
 └── Documentation.md
 ```
 
+## Using the GUI
+
+1. Launch the application with the `-ui` flag
+2. Select your project directory using the "Browse..." button
+3. Choose a configuration from the dropdown
+4. Click "Scan Files" to analyze your project
+5. Select/deselect files for extraction using the checkboxes
+6. Enter an output filename (or use the default)
+7. Click "Extract Selected Files" to generate the markdown document
+
 ## Example: Using with LLMs
 
 When using the output with LLMs like Claude, GPT-4, or others:
 
-1. Run the extractor on your project
+1. Run the extractor on your project (using GUI or CLI)
 2. Upload the generated Markdown file to your LLM interface
 3. Ask questions about your codebase with full context!
 

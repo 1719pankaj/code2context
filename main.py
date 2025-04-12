@@ -2,6 +2,9 @@ import os
 import argparse
 import datetime
 import configparser
+import tkinter as tk
+from tkinter import filedialog, ttk, messagebox
+import threading
 
 def collect_files_from_dir(directory, extensions, include_subdirs, excluded_dirs=None, excluded_files=None):
     """
@@ -127,13 +130,388 @@ def find_config_file(config_name):
 
     return None
 
+def get_available_configs():
+    """Get a list of available configuration files"""
+    script_dir = os.path.dirname(__file__)
+    configs_dir = os.path.join(script_dir, "configs")
+
+    config_files = []
+
+    # Check configs directory
+    if os.path.exists(configs_dir):
+        for file in os.listdir(configs_dir):
+            if file.endswith('.config'):
+                # Extract the config name without extension
+                config_name = os.path.splitext(file)[0]
+                if config_name.endswith('_extract'):
+                    config_name = config_name[:-8]  # Remove _extract suffix
+                config_files.append(config_name)
+
+    # Check script directory
+    for file in os.listdir(script_dir):
+        if file.endswith('.config'):
+            config_name = os.path.splitext(file)[0]
+            if config_name.endswith('_extract'):
+                config_name = config_name[:-8]  # Remove _extract suffix
+            if config_name not in config_files:
+                config_files.append(config_name)
+
+    return config_files
+
+class CodeExtractorUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Code Extractor")
+        self.root.geometry("900x700")
+
+        # Initialize variables
+        self.directory_var = tk.StringVar()
+        self.config_var = tk.StringVar()
+        self.output_var = tk.StringVar(value="code.txt")
+        self.status_var = tk.StringVar(value="Ready")
+
+        # Dictionary to store file checkboxes and their variables
+        # Key: file path, Value: (BooleanVar, relative path)
+        self.file_checkboxes = {}
+
+        # Create main frame
+        self.main_frame = ttk.Frame(root, padding="10")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Directory selection
+        ttk.Label(self.main_frame, text="Project Directory:").grid(row=0, column=0, sticky="w", pady=5)
+        ttk.Entry(self.main_frame, textvariable=self.directory_var, width=50).grid(row=0, column=1, sticky="ew", pady=5)
+        ttk.Button(self.main_frame, text="Browse...", command=self.browse_directory).grid(row=0, column=2, padx=5, pady=5)
+
+        # Config selection
+        ttk.Label(self.main_frame, text="Configuration:").grid(row=1, column=0, sticky="w", pady=5)
+        self.config_combo = ttk.Combobox(self.main_frame, textvariable=self.config_var, width=30)
+        self.config_combo.grid(row=1, column=1, sticky="w", pady=5)
+        ttk.Button(self.main_frame, text="Scan Files", command=self.scan_files).grid(row=1, column=2, padx=5, pady=5)
+
+        # File list with checkboxes
+        ttk.Label(self.main_frame, text="Select Files to Extract:").grid(row=2, column=0, columnspan=3, sticky="w", pady=5)
+
+        # Create a frame for the file list with scrollbar
+        self.file_frame = ttk.Frame(self.main_frame, relief="sunken", borderwidth=1)
+        self.file_frame.grid(row=3, column=0, columnspan=3, sticky="nsew", pady=5)
+        self.main_frame.grid_rowconfigure(3, weight=1)
+        self.main_frame.grid_columnconfigure(1, weight=1)
+
+        # Scrollbars
+        self.file_scroll_y = ttk.Scrollbar(self.file_frame, orient=tk.VERTICAL)
+        self.file_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.file_scroll_x = ttk.Scrollbar(self.file_frame, orient=tk.HORIZONTAL)
+        self.file_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Canvas for scrolling
+        self.file_canvas = tk.Canvas(self.file_frame)
+        self.file_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Configure scrollbars
+        self.file_scroll_y.config(command=self.file_canvas.yview)
+        self.file_scroll_x.config(command=self.file_canvas.xview)
+        self.file_canvas.config(yscrollcommand=self.file_scroll_y.set, xscrollcommand=self.file_scroll_x.set)
+
+        # Inner frame for file checkboxes
+        self.file_list_frame = ttk.Frame(self.file_canvas)
+        self.file_canvas.create_window((0, 0), window=self.file_list_frame, anchor=tk.NW)
+
+        # Selection controls
+        self.controls_frame = ttk.Frame(self.main_frame)
+        self.controls_frame.grid(row=4, column=0, columnspan=3, sticky="w", pady=5)
+
+        ttk.Button(self.controls_frame, text="Select All", command=self.select_all).pack(side=tk.LEFT, padx=5)
+        ttk.Button(self.controls_frame, text="Deselect All", command=self.deselect_all).pack(side=tk.LEFT, padx=5)
+        ttk.Button(self.controls_frame, text="Toggle Selection", command=self.toggle_selection).pack(side=tk.LEFT, padx=5)
+
+        # Output file name
+        ttk.Label(self.main_frame, text="Output File:").grid(row=5, column=0, sticky="w", pady=5)
+        ttk.Entry(self.main_frame, textvariable=self.output_var).grid(row=5, column=1, sticky="ew", pady=5)
+
+        # Extract button
+        ttk.Button(self.main_frame, text="Extract Selected Files", command=self.extract_files).grid(row=6, column=0, columnspan=3, pady=10)
+
+        # Status bar
+        self.status_bar = ttk.Label(self.main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        self.status_bar.grid(row=7, column=0, columnspan=3, sticky="ew")
+
+        # Populate the config combobox
+        self.populate_configs()
+
+        # Configure the canvas resize
+        self.file_list_frame.bind("<Configure>", self.on_frame_configure)
+        self.file_canvas.bind("<Configure>", self.on_canvas_configure)
+
+    def on_frame_configure(self, event):
+        """Reset the scroll region to encompass the inner frame"""
+        self.file_canvas.configure(scrollregion=self.file_canvas.bbox("all"))
+
+    def on_canvas_configure(self, event):
+        """Update the inner frame's width to fill the canvas"""
+        canvas_width = event.width
+        self.file_canvas.itemconfig(1, width=canvas_width)
+
+    def populate_configs(self):
+        """Populate the config combobox with available configs"""
+        configs = get_available_configs()
+        self.config_combo['values'] = configs
+        if configs:
+            self.config_var.set(configs[0])
+
+    def browse_directory(self):
+        """Browse for a directory"""
+        directory = filedialog.askdirectory()
+        if directory:
+            self.directory_var.set(directory)
+
+    def scan_files(self):
+        """Scan for files based on selected directory and config"""
+        directory = self.directory_var.get()
+        config_name = self.config_var.get()
+
+        if not directory:
+            messagebox.showwarning("Missing Directory", "Please select a project directory.")
+            return
+
+        if not config_name:
+            messagebox.showwarning("Missing Config", "Please select a configuration.")
+            return
+
+        # Find the config file
+        config_path = find_config_file(config_name)
+        if not config_path:
+            messagebox.showerror("Config Error", f"Config file for '{config_name}' not found.")
+            return
+
+        # Clear previous file list
+        for widget in self.file_list_frame.winfo_children():
+            widget.destroy()
+        self.file_checkboxes.clear()
+
+        # Update status
+        self.status_var.set(f"Scanning files with config: {os.path.basename(config_path)}...")
+        self.root.update_idletasks()
+
+        # Start scanning in a separate thread
+        threading.Thread(target=self.perform_scan, args=(directory, config_path)).start()
+
+    def perform_scan(self, directory, config_path):
+        """Perform the file scan in a separate thread"""
+        try:
+            config = configparser.ConfigParser()
+            config.read(config_path)
+
+            # Parse global exclusions if present
+            global_excluded_dirs = []
+            global_excluded_files = []
+
+            if 'global' in config:
+                if 'excluded_dirs' in config['global']:
+                    global_excluded_dirs = parse_list_from_config(config['global']['excluded_dirs'])
+
+                if 'excluded_files' in config['global']:
+                    global_excluded_files = parse_list_from_config(config['global']['excluded_files'])
+
+            file_paths = []
+
+            # Process each section
+            for section in config.sections():
+                if section in ['specific_files', 'global']:
+                    continue  # Handle these sections separately
+
+                # Handle relative directories from the base
+                dir_path = os.path.join(directory, section)
+                if not os.path.exists(dir_path):
+                    print(f"Warning: Directory '{dir_path}' does not exist. Skipping...")
+                    continue
+
+                # Parse section-specific configurations
+                extensions = parse_list_from_config(config.get(section, 'extensions'))
+                extensions = [f'.{ext}' if not ext.startswith('.') else ext for ext in extensions]
+                include_subdirs = config.getboolean(section, 'include_subdirs', fallback=True)
+
+                # Section-specific exclusions combine with global exclusions
+                excluded_dirs = global_excluded_dirs.copy()
+                excluded_files = global_excluded_files.copy()
+
+                if 'excluded_dirs' in config[section]:
+                    section_excluded_dirs = parse_list_from_config(config[section]['excluded_dirs'])
+                    excluded_dirs.extend(section_excluded_dirs)
+
+                if 'excluded_files' in config[section]:
+                    section_excluded_files = parse_list_from_config(config[section]['excluded_files'])
+                    excluded_files.extend(section_excluded_files)
+
+                collected = collect_files_from_dir(
+                    dir_path,
+                    extensions,
+                    include_subdirs,
+                    excluded_dirs,
+                    excluded_files
+                )
+                file_paths.extend(collected)
+
+            # Handle specific files
+            if 'specific_files' in config.sections():
+                specific_files_text = config.get('specific_files', 'files')
+                specific_files = parse_list_from_config(specific_files_text)
+
+                # Process the specific files
+                for specific_file in specific_files:
+                    full_path = os.path.join(directory, specific_file)
+                    if os.path.isfile(full_path):
+                        # Check if this file is excluded globally
+                        filename = os.path.basename(specific_file)
+                        if any(filename == excluded_file or
+                               (excluded_file.startswith('*') and filename.endswith(excluded_file[1:])) or
+                               (excluded_file.endswith('*') and filename.startswith(excluded_file[:-1]))
+                               for excluded_file in global_excluded_files):
+                            continue
+
+                        if full_path not in file_paths:
+                            file_paths.append(full_path)
+                    else:
+                        print(f"Warning: Specific file '{specific_file}' not found. Skipping...")
+
+            # Update the UI with the file list
+            self.root.after(0, lambda: self.update_file_list(file_paths, directory))
+
+        except Exception as e:
+            self.root.after(0, lambda: self.update_status(f"Error: {str(e)}"))
+
+    def update_file_list(self, file_paths, base_directory):
+        """Update the UI with the file list"""
+        # Clear any existing file list
+        for widget in self.file_list_frame.winfo_children():
+            widget.destroy()
+
+        self.file_checkboxes.clear()
+
+        # Sort file paths by relative path
+        rel_paths = [(path, os.path.relpath(path, base_directory)) for path in file_paths]
+        rel_paths.sort(key=lambda x: x[1])
+
+        # Create checkboxes for each file
+        for i, (full_path, rel_path) in enumerate(rel_paths):
+            var = tk.BooleanVar(value=True)
+
+            # Store the checkbox variable and relative path keyed by the full path
+            self.file_checkboxes[full_path] = (var, rel_path)
+
+            checkbox = ttk.Checkbutton(self.file_list_frame, text=rel_path, variable=var)
+            checkbox.grid(row=i, column=0, sticky="w", padx=5, pady=2)
+
+        # Update the scroll region
+        self.file_list_frame.update_idletasks()
+        self.file_canvas.configure(scrollregion=self.file_canvas.bbox("all"))
+
+        # Update status
+        self.update_status(f"Found {len(file_paths)} files. Select files to extract.")
+
+    def update_status(self, message):
+        """Update the status bar"""
+        self.status_var.set(message)
+
+    def select_all(self):
+        """Select all files"""
+        for var, _ in self.file_checkboxes.values():
+            var.set(True)
+
+    def deselect_all(self):
+        """Deselect all files"""
+        for var, _ in self.file_checkboxes.values():
+            var.set(False)
+
+    def toggle_selection(self):
+        """Toggle selection of all files"""
+        for var, _ in self.file_checkboxes.values():
+            var.set(not var.get())
+
+    def extract_files(self):
+        """Extract selected files"""
+        # Get the selected files - only include files where the checkbox is checked
+        selected_files = [path for path, (var, _) in self.file_checkboxes.items() if var.get()]
+
+        if not selected_files:
+            messagebox.showwarning("No Files Selected", "Please select at least one file to extract.")
+            return
+
+        # Get the output file name
+        output_filename = self.output_var.get()
+        if not output_filename:
+            messagebox.showwarning("Missing Output", "Please provide an output file name.")
+            return
+
+        # Add .md extension if not present
+        if not output_filename.endswith('.md'):
+            output_filename += '.md'
+
+        # Set output path
+        output_path = os.path.join("Extracts", output_filename)
+
+        # Update status
+        self.update_status(f"Extracting {len(selected_files)} files...")
+        self.root.update_idletasks()
+
+        # Start extraction in a separate thread
+        base_directory = self.directory_var.get()
+        threading.Thread(target=self.perform_extraction, args=(selected_files, base_directory, output_path)).start()
+
+    def perform_extraction(self, file_paths, base_directory, output_path):
+        """Perform the extraction in a separate thread"""
+        try:
+            # Generate markdown content
+            markdown_content = create_markdown_content(file_paths, base_directory)
+
+            # Ensure output directory exists
+            ensure_directory_exists(output_path)
+
+            # Write to file
+            with open(output_path, 'w', encoding='utf-8') as output_file:
+                output_file.write(markdown_content)
+
+            # Generate files.txt
+            files_txt_path = "files.txt"
+            file_names = [os.path.relpath(file, base_directory) for file in file_paths]
+
+            with open(files_txt_path, 'w') as f:
+                for name in file_names:
+                    f.write(f"{name}\n")
+
+            # Update status
+            self.root.after(0, lambda: self.extraction_complete(output_path, len(file_paths)))
+
+        except Exception as e:
+            self.root.after(0, lambda: self.update_status(f"Error: {str(e)}"))
+
+    def extraction_complete(self, output_path, num_files):
+        """Show completion message and update status"""
+        self.update_status(f"Extraction complete: {num_files} files extracted to {output_path}")
+        messagebox.showinfo("Extraction Complete", f"Successfully extracted {num_files} files to:\n{output_path}\n\nAlso generated files.txt listing all extracted files.")
+
 def main():
     parser = argparse.ArgumentParser(description='Collect code based on config file and save as markdown.')
-    parser.add_argument('directory', help='Base directory of the project')
+    parser.add_argument('directory', nargs='?', help='Base directory of the project')
     parser.add_argument('-c', '--config', help='Config type to use (e.g., android, web)', default='extract')
     parser.add_argument('-o', '--output', help='Output file path (default: code_collection.txt)')
+    parser.add_argument('-ui', '--ui', action='store_true', help='Launch with graphical user interface')
 
     args = parser.parse_args()
+
+    # Check if UI mode is requested
+    if args.ui or (not args.directory and len(os.sys.argv) > 1 and os.sys.argv[1] == '-ui'):
+        root = tk.Tk()
+        app = CodeExtractorUI(root)
+        root.mainloop()
+        return
+
+    # Continue with CLI mode if UI is not requested
+    if not args.directory:
+        print("Error: Directory argument is required in CLI mode.")
+        parser.print_help()
+        return
 
     # Find the configuration file
     config_path = find_config_file(args.config)

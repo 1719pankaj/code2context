@@ -13,11 +13,13 @@ Thank you for your interest in contributing to Code Extractor! This document pro
   - [Adding New Configuration Types](#adding-new-configuration-types)
   - [Adding Support for New Languages](#adding-support-for-new-languages)
   - [Improving Exclusion Patterns](#improving-exclusion-patterns)
+  - [GUI Enhancements](#gui-enhancements)
 - [Internal Architecture](#internal-architecture)
   - [Core Components](#core-components)
   - [Configuration Processing](#configuration-processing)
   - [File Collection Logic](#file-collection-logic)
   - [Markdown Generation](#markdown-generation)
+  - [GUI Architecture](#gui-architecture)
 - [Testing](#testing)
 - [Documentation](#documentation)
 
@@ -37,6 +39,7 @@ If you find a bug:
    - Steps to reproduce the issue
    - Expected behavior and what actually happened
    - Your environment (OS, Python version, etc.)
+   - Whether the issue occurs in GUI mode, CLI mode, or both
 
 ### Suggesting Enhancements
 
@@ -47,6 +50,7 @@ Have an idea to improve Code Extractor?
    - A clear description of your proposed feature
    - The problem it solves
    - Any implementation ideas you have
+   - Whether it affects the GUI, CLI, or both
 
 ### Pull Requests
 
@@ -90,7 +94,7 @@ files = file1.ext, path/to/file2.ext
 3. Add typical excluded directories and files for the project type in the `[global]` section
 4. Define directory sections with appropriate extensions and exclusion rules
 5. Add common config files to the `[specific_files]` section
-6. Test your configuration with a sample project
+6. Test your configuration with a sample project (using both GUI and CLI modes)
 7. Document your new configuration in the README.md
 
 Example for Python projects:
@@ -150,6 +154,18 @@ To add more complex patterns:
 2. Consider adding support for glob patterns or regular expressions
 3. Update the documentation to reflect the new capabilities
 
+### GUI Enhancements
+
+When modifying the GUI:
+
+1. Use Tkinter's standard widgets and follow their design patterns
+2. Keep the interface intuitive and user-friendly
+3. For long-running operations, use threading to avoid freezing the UI
+4. Update status messages to keep users informed of progress
+5. Add tooltips or help text for complex features
+6. Ensure all actions have clear visual feedback
+7. Keep the design responsive to different window sizes
+
 ## Internal Architecture
 
 For those interested in modifying the core functionality, here's how Code Extractor works internally.
@@ -163,6 +179,7 @@ The main script (`main.py`) consists of several key components:
 3. **File Collection**: Finds and filters files based on configuration rules
 4. **Content Extraction**: Reads file contents
 5. **Markdown Generation**: Creates formatted markdown output
+6. **Graphical User Interface**: Implements a user-friendly UI using Tkinter
 
 ### Configuration Processing
 
@@ -211,6 +228,26 @@ The `create_markdown_content()` function builds the output markdown:
    - Includes the file content in a code block with language specifier
 3. Handles encoding issues with the `errors='replace'` parameter
 
+### GUI Architecture
+
+The GUI is implemented through the `CodeExtractorUI` class:
+
+1. **Initialization**: Sets up the main window, frames, and controls
+2. **Directory Selection**: Allows browsing for the project directory
+3. **Config Selection**: Populates a dropdown with available configs
+4. **File Scanning**: Executes in a separate thread to avoid UI freezing
+5. **File Display**: Shows checkboxes for each discovered file
+6. **File Selection**: Provides buttons to select, deselect, or toggle files
+7. **Extraction**: Generates markdown content in a separate thread
+8. **Status Updates**: Shows progress and results in a status bar
+
+The UI follows the Model-View-Controller pattern:
+- **Model**: File data and configuration information
+- **View**: Tkinter widgets and layout
+- **Controller**: Event handlers and processing logic
+
+Threading is used for potentially long-running operations to maintain UI responsiveness.
+
 ## Testing
 
 When contributing changes:
@@ -218,6 +255,8 @@ When contributing changes:
 1. Test your changes with at least one real project
 2. Ensure the output markdown is correctly formatted
 3. Verify that file collection works as expected with your changes
+4. If modifying the GUI, test on different operating systems if possible
+5. Check both GUI and CLI modes to ensure neither is broken
 
 ## Documentation
 
@@ -227,3 +266,4 @@ When making changes, please update:
 2. `Documentation.md` for detailed functionality changes
 3. Comments in the code for implementation details
 4. This `CONTRIBUTING.md` file if contribution process changes
+5. Include information about GUI-specific changes if applicable
