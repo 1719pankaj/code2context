@@ -85,6 +85,17 @@ def get_language_by_extension(extension):
         '.js': 'javascript',
         '.html': 'html',
         '.css': 'css',
+        '.cs': 'csharp',
+        '.go': 'go',
+        '.py': 'python',
+        '.rb': 'ruby',
+        '.php': 'php',
+        '.swift': 'swift',
+        '.sh': 'bash',
+        '.bash': 'bash',
+        '.txt': 'text',
+        '.md': 'markdown',
+        '.sql': 'sql',
     }
     return language_map.get(extension, 'text')
 
